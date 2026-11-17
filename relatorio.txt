@@ -1,0 +1,16 @@
+=== RELATORIO DO SISTEMA ===
+
+--- RESUMO GERAL ---
+Total de Robos: 2
+Total de Areas: 1
+Total de Missoes: 1
+
+--- MISSOES ---
+Missoes Concluidas: 1
+Missoes Pendentes: 0
+Missoes Canceladas: 0
+
+--- ROBOS ---
+Robos Disponiveis: 2
+Robos em Manutencao: 0
+Robos Sem Bateria: 0
