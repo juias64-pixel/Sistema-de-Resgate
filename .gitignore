@@ -1,2 +1,4 @@
 out/
 .idea/workspace.xml
+sistema.dat.tmp
+sistema-corrompido-*.dat

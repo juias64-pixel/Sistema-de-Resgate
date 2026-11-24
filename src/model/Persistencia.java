@@ -1,134 +1,108 @@
 package model;
 
-import java.io.*;
 import java.io.BufferedWriter;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 public class Persistencia {
 
-    public static void salvarSistema(
-            CentralResgate central) {
+    private static final Path ARQUIVO_DADOS = Path.of("sistema.dat");
+    private static final Path ARQUIVO_TEMPORARIO = Path.of("sistema.dat.tmp");
+    private static final Path ARQUIVO_RELATORIO = Path.of("relatorio.txt");
+
+    private Persistencia() {
+    }
+
+    public static boolean salvarSistema(CentralResgate central) {
 
         try {
 
-            ObjectOutputStream out =
-                    new ObjectOutputStream(
-                            new FileOutputStream(
-                                    "sistema.dat"
-                            )
-                    );
+            // Grava em um arquivo temporário e só depois substitui o original,
+            // para que uma falha no meio da gravação não destrua os dados.
+            try (ObjectOutputStream out = new ObjectOutputStream(
+                    Files.newOutputStream(ARQUIVO_TEMPORARIO))) {
 
-            out.writeObject(central);
+                out.writeObject(central);
+            }
 
-            out.close();
-
-            System.out.println(
-                    "Dados salvos com sucesso!"
+            Files.move(
+                    ARQUIVO_TEMPORARIO,
+                    ARQUIVO_DADOS,
+                    StandardCopyOption.REPLACE_EXISTING
             );
+
+            return true;
 
         } catch (IOException e) {
 
-            System.out.println(
-                    "Erro ao salvar dados."
-            );
+            System.out.println("Erro ao salvar dados: " + e);
+            return false;
         }
     }
 
-    public static CentralResgate carregarSistema() {
+    /**
+     * Carrega os dados salvos. Sem arquivo, começa um sistema vazio; com um
+     * arquivo ilegível, guarda uma cópia dele antes de começar vazio.
+     *
+     * @throws IOException se o arquivo ilegível não puder ser preservado
+     */
+    public static CentralResgate carregarSistema() throws IOException {
 
-        try {
-
-            ObjectInputStream in =
-                    new ObjectInputStream(
-                            new FileInputStream(
-                                    "sistema.dat"
-                            )
-                    );
-
-            CentralResgate central =
-                    (CentralResgate) in.readObject();
-
-            in.close();
-
-            return central;
-
-        } catch (Exception e) {
-
+        if (!Files.exists(ARQUIVO_DADOS)) {
             return new CentralResgate();
         }
-    }
 
-    public static void salvarRelatorio(Relatorio relatorio) {
+        try (ObjectInputStream in = new ObjectInputStream(
+                Files.newInputStream(ARQUIVO_DADOS))) {
 
-        try {
+            return (CentralResgate) in.readObject();
 
-            BufferedWriter writer =
-                    new BufferedWriter(
-                            new FileWriter("relatorio.txt"));
-
-            writer.write("=== RELATORIO DO SISTEMA ===");
-            writer.newLine();
-
-            writer.newLine();
-            writer.write("--- RESUMO GERAL ---");
-            writer.newLine();
-
-            writer.write("Total de Robos: " +
-                    relatorio.getTotalRobos());
-            writer.newLine();
-
-            writer.write("Total de Areas: " +
-                    relatorio.getTotalAreas());
-            writer.newLine();
-
-            writer.write("Total de Missoes: " +
-                    relatorio.getTotalMissoes());
-            writer.newLine();
-
-            writer.newLine();
-            writer.write("--- MISSOES ---");
-            writer.newLine();
-
-            writer.write("Missoes Concluidas: " +
-                    relatorio.getMissoesConcluidas());
-            writer.newLine();
-
-            writer.write("Missoes Pendentes: " +
-                    relatorio.getMissoesPendentes());
-            writer.newLine();
-
-            writer.write("Missoes Canceladas: " +
-                    relatorio.getMissoesCanceladas());
-            writer.newLine();
-
-            writer.newLine();
-            writer.write("--- ROBOS ---");
-            writer.newLine();
-
-            writer.write("Robos Disponiveis: " +
-                    relatorio.getRobosDisponiveis());
-            writer.newLine();
-
-            writer.write("Robos em Manutencao: " +
-                    relatorio.getRobosManutencao());
-            writer.newLine();
-
-            writer.write("Robos Sem Bateria: " +
-                    relatorio.getRobosSemBateria());
-            writer.newLine();
-
-            writer.close();
+        } catch (IOException | ClassNotFoundException | RuntimeException e) {
 
             System.out.println(
-                    "Relatorio salvo com sucesso!"
+                    "Não foi possível ler " + ARQUIVO_DADOS + ": " + e
             );
+        }
+
+        Path copia = Path.of(
+                "sistema-corrompido-" + System.currentTimeMillis() + ".dat"
+        );
+
+        Files.copy(ARQUIVO_DADOS, copia);
+
+        System.out.println(
+                "Uma cópia foi guardada em " + copia
+                        + ". Iniciando com o sistema vazio."
+        );
+
+        return new CentralResgate();
+    }
+
+    public static boolean salvarRelatorio(Relatorio relatorio) {
+
+        try (BufferedWriter writer = Files.newBufferedWriter(
+                ARQUIVO_RELATORIO, StandardCharsets.UTF_8)) {
+
+            for (String linha : relatorio.gerarLinhas()) {
+
+                writer.write(linha);
+                writer.newLine();
+            }
 
         } catch (IOException e) {
 
-            System.out.println(
-                    "Erro ao salvar arquivo."
-            );
+            System.out.println("Erro ao salvar relatório: " + e);
+            return false;
         }
+
+        System.out.println(
+                "\nRelatório salvo com sucesso em " + ARQUIVO_RELATORIO + "!"
+        );
+        return true;
     }
 }

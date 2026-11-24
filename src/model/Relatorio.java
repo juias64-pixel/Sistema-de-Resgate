@@ -3,17 +3,21 @@ package model;
 import enums.StatusMissao;
 import enums.StatusRobo;
 
+import java.util.List;
+
 public class Relatorio {
 
-    private int totalRobos;
-    private int totalAreas;
-    private int totalMissoes;
+    private final int totalRobos;
+    private final int totalAreas;
+    private final int totalMissoes;
 
     private int missoesConcluidas;
+    private int missoesEmAndamento;
     private int missoesPendentes;
     private int missoesCanceladas;
 
     private int robosDisponiveis;
+    private int robosEmMissao;
     private int robosManutencao;
     private int robosSemBateria;
 
@@ -23,105 +27,87 @@ public class Relatorio {
         totalAreas = central.getAreas().size();
         totalMissoes = central.getMissoes().size();
 
-        missoesConcluidas = 0;
-        missoesPendentes = 0;
-        missoesCanceladas = 0;
-
-        robosDisponiveis = 0;
-        robosManutencao = 0;
-        robosSemBateria = 0;
-
         for (Missao missao : central.getMissoes()) {
-
-            if (missao.getStatus() == StatusMissao.CONCLUIDA) {
-
-                missoesConcluidas++;
-
-            } else if (missao.getStatus() == StatusMissao.CANCELADA) {
-
-                missoesCanceladas++;
-
-            } else {
-
-                missoesPendentes++;
-
-            }
+            contarMissao(missao.getStatus());
         }
 
         for (Robo robo : central.getRobos()) {
-
-            if (robo.getStatus() == StatusRobo.DISPONIVEL) {
-
-                robosDisponiveis++;
-
-            } else if (robo.getStatus() == StatusRobo.EM_MANUTENCAO) {
-
-                robosManutencao++;
-
-            } else if (robo.getStatus() == StatusRobo.SEM_BATERIA) {
-
-                robosSemBateria++;
-
-            }
+            contarRobo(robo.getStatus());
         }
+    }
+
+    private void contarMissao(StatusMissao status) {
+
+        switch (status) {
+
+            case CONCLUIDA:
+                missoesConcluidas++;
+                break;
+
+            case EM_ANDAMENTO:
+                missoesEmAndamento++;
+                break;
+
+            case PENDENTE:
+                missoesPendentes++;
+                break;
+
+            case CANCELADA:
+                missoesCanceladas++;
+                break;
+        }
+    }
+
+    private void contarRobo(StatusRobo status) {
+
+        switch (status) {
+
+            case DISPONIVEL:
+                robosDisponiveis++;
+                break;
+
+            case EM_MISSAO:
+                robosEmMissao++;
+                break;
+
+            case EM_MANUTENCAO:
+                robosManutencao++;
+                break;
+
+            case SEM_BATERIA:
+                robosSemBateria++;
+                break;
+        }
+    }
+
+    /** Conteúdo do relatório, usado tanto na tela quanto no arquivo. */
+    public List<String> gerarLinhas() {
+
+        return List.of(
+                "=== RELATÓRIO DO SISTEMA ===",
+                "",
+                "--- RESUMO GERAL ---",
+                "Total de Robôs: " + totalRobos,
+                "Total de Áreas: " + totalAreas,
+                "Total de Missões: " + totalMissoes,
+                "",
+                "--- MISSÕES ---",
+                "Missões Concluídas: " + missoesConcluidas,
+                "Missões Em Andamento: " + missoesEmAndamento,
+                "Missões Pendentes: " + missoesPendentes,
+                "Missões Canceladas: " + missoesCanceladas,
+                "",
+                "--- ROBÔS ---",
+                "Robôs Disponíveis: " + robosDisponiveis,
+                "Robôs em Missão: " + robosEmMissao,
+                "Robôs em Manutenção: " + robosManutencao,
+                "Robôs Sem Bateria: " + robosSemBateria
+        );
     }
 
     public void gerarResumo() {
 
-        System.out.println("\n=== RELATÓRIO DO SISTEMA ===");
-
-        System.out.println("\n--- RESUMO GERAL ---");
-
-        System.out.println("Total de Robôs: " + totalRobos);
-        System.out.println("Total de Áreas: " + totalAreas);
-        System.out.println("Total de Missões: " + totalMissoes);
-
-        System.out.println("\n--- MISSÕES ---");
-
-        System.out.println("Missões Concluídas: " + missoesConcluidas);
-        System.out.println("Missões Pendentes: " + missoesPendentes);
-        System.out.println("Missões Canceladas: " + missoesCanceladas);
-
-        System.out.println("\n--- ROBÔS ---");
-
-        System.out.println("Robôs Disponíveis: " + robosDisponiveis);
-        System.out.println("Robôs em Manutenção: " + robosManutencao);
-        System.out.println("Robôs Sem Bateria: " + robosSemBateria);
-    }
-
-    public int getTotalRobos() {
-        return totalRobos;
-    }
-
-    public int getTotalAreas() {
-        return totalAreas;
-    }
-
-    public int getTotalMissoes() {
-        return totalMissoes;
-    }
-
-    public int getMissoesConcluidas() {
-        return missoesConcluidas;
-    }
-
-    public int getMissoesPendentes() {
-        return missoesPendentes;
-    }
-
-    public int getMissoesCanceladas() {
-        return missoesCanceladas;
-    }
-
-    public int getRobosDisponiveis() {
-        return robosDisponiveis;
-    }
-
-    public int getRobosManutencao() {
-        return robosManutencao;
-    }
-
-    public int getRobosSemBateria() {
-        return robosSemBateria;
+        System.out.println();
+        gerarLinhas().forEach(System.out::println);
     }
 }

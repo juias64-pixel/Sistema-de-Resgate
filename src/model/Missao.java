@@ -6,6 +6,8 @@ import java.io.Serializable;
 
 public class Missao implements Serializable {
 
+    private static final long serialVersionUID = 3514207644041144457L;
+
     private int id;
     private String descricao;
     private TipoMissao tipoMissao;
@@ -29,63 +31,106 @@ public class Missao implements Serializable {
         this.roboResponsavel = robo;
     }
 
-    public void iniciarMissao() {
+    /** Uma missão ativa (pendente ou em andamento) mantém o robô reservado. */
+    public boolean estaAtiva() {
+        return status == StatusMissao.PENDENTE
+                || status == StatusMissao.EM_ANDAMENTO;
+    }
+
+    public boolean iniciarMissao() {
+
+        if (status != StatusMissao.PENDENTE) {
+
+            System.out.println(
+                    "Apenas missões pendentes podem ser executadas. Status atual: "
+                            + status
+            );
+            return false;
+        }
 
         if (roboResponsavel == null) {
 
-            System.out.println("Nenhum robô atribuído.");
-            return;
+            System.out.println("Nenhum robô disponível para esta missão.");
+            return false;
         }
 
-        if (status == StatusMissao.CONCLUIDA) {
+        if (!roboResponsavel.executarMissao()) {
 
-            System.out.println("Esta missão já foi concluída.");
-            return;
+            System.out.println(
+                    roboResponsavel.getNome()
+                            + " não pode executar a missão. Status: "
+                            + roboResponsavel.getStatus()
+                            + " | Bateria: "
+                            + roboResponsavel.getNivelBateria() + "%"
+            );
+            return false;
         }
 
         status = StatusMissao.EM_ANDAMENTO;
 
-        roboResponsavel.enviarMensagem(
-                "Missão iniciada: " + descricao
-        );
-
-        roboResponsavel.executarMissao();
-
         roboResponsavel.receberMensagem(
-                "Central confirma execução da missão."
+                "Central confirma execução da missão: " + descricao
         );
 
-        roboResponsavel.consumirBateria(20);
-
-        System.out.println("Missão iniciada com sucesso.");
+        System.out.println("Missão iniciada com sucesso!");
 
         System.out.println(
                 "Bateria restante: "
                         + roboResponsavel.getNivelBateria()
                         + "%"
         );
+
+        return true;
     }
 
-    public void concluirMissao() {
+    public boolean concluirMissao() {
 
-        if (status == StatusMissao.CONCLUIDA) {
+        if (status != StatusMissao.EM_ANDAMENTO) {
 
-            System.out.println("Esta missão já está concluída.");
-            return;
-
-        }
-
-        if (roboResponsavel != null) {
-
-            roboResponsavel.enviarMensagem(
-                    "Missão concluída: " + descricao
+            System.out.println(
+                    "Apenas missões em andamento podem ser concluídas. Status atual: "
+                            + status
             );
+            return false;
         }
-
 
         status = StatusMissao.CONCLUIDA;
 
-        System.out.println("Missão concluída.");
+        if (roboResponsavel != null) {
+
+            roboResponsavel.enviarMensagem("Missão concluída: " + descricao);
+            roboResponsavel.finalizarMissao();
+        }
+
+        System.out.println("Missão concluída com sucesso!");
+        return true;
+    }
+
+    public boolean cancelarMissao() {
+
+        if (!estaAtiva()) {
+
+            System.out.println(
+                    "Esta missão não pode ser cancelada. Status atual: " + status
+            );
+            return false;
+        }
+
+        boolean estavaEmAndamento = status == StatusMissao.EM_ANDAMENTO;
+
+        status = StatusMissao.CANCELADA;
+
+        if (roboResponsavel != null) {
+
+            roboResponsavel.receberMensagem("Missão cancelada pela central.");
+
+            if (estavaEmAndamento) {
+                roboResponsavel.finalizarMissao();
+            }
+        }
+
+        System.out.println("Missão cancelada com sucesso!");
+        return true;
     }
 
     public void exibirResumo() {
@@ -101,9 +146,12 @@ public class Missao implements Serializable {
             System.out.println("Área: " + area.getNome());
         }
 
-        if (roboResponsavel != null) {
-            System.out.println("Robô: " + roboResponsavel.getNome());
-        }
+        System.out.println(
+                "Robô: "
+                        + (roboResponsavel == null
+                        ? "não atribuído"
+                        : roboResponsavel.getNome())
+        );
 
         System.out.println("-------------------------");
     }
@@ -130,25 +178,5 @@ public class Missao implements Serializable {
 
     public StatusMissao getStatus() {
         return status;
-    }
-
-    public void cancelarMissao() {
-
-        if (status == StatusMissao.CONCLUIDA) {
-
-            System.out.println("Não é possível cancelar uma missão concluída.");
-            return;
-        }
-
-        status = StatusMissao.CANCELADA;
-
-        if (roboResponsavel != null) {
-
-            roboResponsavel.receberMensagem(
-                    "Missão cancelada pela central."
-            );
-        }
-
-        System.out.println("Missão cancelada.");
     }
 }

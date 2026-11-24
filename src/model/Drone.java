@@ -4,21 +4,19 @@ import enums.StatusRobo;
 
 public class Drone extends Robo {
 
+    private static final long serialVersionUID = 4026269054462051556L;
+
+    private static final int CONSUMO_POR_MISSAO = 20;
+
     public Drone(int id, String nome) {
         super(id, nome);
     }
 
     @Override
-    public void executarMissao() {
+    public boolean executarMissao() {
 
-        if (status == StatusRobo.EM_MANUTENCAO) {
-            System.out.println("Robô em manutenção.");
-            return;
-        }
-
-        if (nivelBateria <= 20) {
-            System.out.println("Bateria insuficiente.");
-            return;
+        if (!podeExecutarMissao()) {
+            return false;
         }
 
         status = StatusRobo.EM_MISSAO;
@@ -27,12 +25,18 @@ public class Drone extends Robo {
 
         enviarMensagem("Missão aérea iniciada.");
 
-        nivelBateria -= 20;
+        consumirBateria(CONSUMO_POR_MISSAO);
 
-        if (nivelBateria <= 20) {
-            status = StatusRobo.SEM_BATERIA;
-        } else {
-            status = StatusRobo.DISPONIVEL;
-        }
+        return true;
+    }
+
+    @Override
+    public int getConsumoPorMissao() {
+        return CONSUMO_POR_MISSAO;
+    }
+
+    @Override
+    public String getTipo() {
+        return "Drone";
     }
 }
