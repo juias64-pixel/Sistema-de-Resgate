@@ -1,961 +1,549 @@
 import enums.NivelRisco;
 import enums.TipoMissao;
 import enums.TipoTerreno;
-import model.*;
+import model.AreaOperacao;
+import model.CentralResgate;
+import model.Drone;
+import model.Missao;
+import model.Persistencia;
+import model.Relatorio;
+import model.Robo;
+import model.RoboTerrestre;
+import util.Entrada;
 
-import java.util.Scanner;
+import java.io.IOException;
+import java.util.NoSuchElementException;
 
 public class Main {
 
-    public static void voltarMenu(Scanner scanner) {
+    private final Entrada entrada = new Entrada();
+    private final CentralResgate central;
 
-        System.out.print("\nPressione ENTER para voltar ao menu...");
-
-        while (true) {
-
-            String entrada = scanner.nextLine();
-
-            if (entrada.isEmpty()) {
-                break;
-            }
-
-            System.out.print("Apenas ENTER para voltar ao menu...");
-        }
+    private Main(CentralResgate central) {
+        this.central = central;
     }
 
     public static void main(String[] args) {
 
-        Scanner scanner = new Scanner(System.in);
-        CentralResgate central = Persistencia.carregarSistema();
+        CentralResgate central;
 
-        int opcao = -1;
+        try {
 
-        do {
+            central = Persistencia.carregarSistema();
 
-            System.out.println("\n=== CENTRAL DE RESGATE ===");
+        } catch (IOException e) {
 
-            System.out.println("\n--- CADASTROS ---");
+            System.out.println(
+                    "Não foi possível preservar os dados existentes: " + e
+            );
+            return;
+        }
 
-            System.out.println("1 - Cadastrar Drone");
-            System.out.println("2 - Cadastrar Robô Terrestre");
-            System.out.println("3 - Cadastrar Área");
-            System.out.println("4 - Criar Missão");
+        new Main(central).executar();
+    }
 
-            System.out.println("\n--- GERENCIAMENTO ---");
+    private void executar() {
 
-            System.out.println("5 - Gerenciar Robôs");
-            System.out.println("6 - Gerenciar Áreas");
-            System.out.println("7 - Gerenciar Missões");
+        try {
 
-            System.out.println("\n--- RELATÓRIOS ---");
+            int opcao;
 
-            System.out.println("8 - Gerar Relatório");
-            System.out.println("9 - Salvar Relatório");
+            do {
 
-            System.out.println("\n0 - Sair");
+                exibirMenu();
+                opcao = entrada.lerOpcao(0, 9);
 
-            System.out.print("\nEscolha uma opção: ");
+                boolean pausar = processarOpcao(opcao);
 
-            String entradaMenu = scanner.nextLine();
+                // Salva a cada operação: fechar a janela não perde os dados.
+                boolean salvou = Persistencia.salvarSistema(central);
 
-            if (entradaMenu.isBlank()) {
-                continue;
-            }
+                if (opcao == 0 && salvou) {
+                    System.out.println("Dados salvos com sucesso!");
+                }
 
-            try {
+                if (pausar) {
+                    entrada.aguardarEnter();
+                }
 
-                opcao = Integer.parseInt(entradaMenu);
+            } while (opcao != 0);
 
-            } catch (NumberFormatException e) {
+        } catch (NoSuchElementException e) {
 
-                System.out.println("\nOpção inválida.");
+            // A entrada foi encerrada (por exemplo, Ctrl+Z ou Ctrl+D). O que
+            // foi concluído já está salvo.
+            System.out.println();
+        }
 
-                voltarMenu(scanner);
+        System.out.println("\nEncerrando sistema...");
+    }
 
-                continue;
-            }
-            switch (opcao) {
+    private void exibirMenu() {
 
-                case 1:
+        System.out.println("\n=== CENTRAL DE RESGATE ===");
 
-                    System.out.print("ID do Drone: ");
-                    int idDrone =
-                            Integer.parseInt(scanner.nextLine());
+        System.out.println("\n--- CADASTROS ---");
 
-                    System.out.print("Nome do Drone: ");
-                    String nomeDrone = scanner.nextLine();
+        System.out.println("1 - Cadastrar Drone");
+        System.out.println("2 - Cadastrar Robô Terrestre");
+        System.out.println("3 - Cadastrar Área");
+        System.out.println("4 - Criar Missão");
 
-                    Drone drone =
-                            new Drone(idDrone, nomeDrone);
+        System.out.println("\n--- GERENCIAMENTO ---");
 
-                    central.cadastrarRobo(drone);
+        System.out.println("5 - Gerenciar Robôs");
+        System.out.println("6 - Gerenciar Áreas");
+        System.out.println("7 - Gerenciar Missões");
 
-                    System.out.println("\nDrone cadastrado com sucesso!");
+        System.out.println("\n--- RELATÓRIOS ---");
 
-                    voltarMenu(scanner);
-                    break;
+        System.out.println("8 - Gerar Relatório");
+        System.out.println("9 - Salvar Relatório");
 
-                case 2:
+        System.out.println("\n0 - Sair");
+    }
 
-                    System.out.print("ID do Robô: ");
-                    int idRobo =
-                            Integer.parseInt(scanner.nextLine());
+    /** @return true se deve esperar ENTER antes de voltar ao menu */
+    private boolean processarOpcao(int opcao) {
 
-                    System.out.print("Nome do Robô: ");
-                    String nomeRobo =
-                            scanner.nextLine();
+        switch (opcao) {
 
-                    System.out.print("Capacidade de carga: ");
-                    double carga =
-                            Double.parseDouble(scanner.nextLine());
+            case 1:
+                cadastrarDrone();
+                return true;
 
-                    RoboTerrestre robo =
-                            new RoboTerrestre(
-                                    idRobo,
-                                    nomeRobo,
-                                    carga
-                            );
+            case 2:
+                cadastrarRoboTerrestre();
+                return true;
 
-                    central.cadastrarRobo(robo);
+            case 3:
+                cadastrarArea();
+                return true;
 
-                    System.out.println("\nRobô terrestre cadastrado com sucesso!");
+            case 4:
+                criarMissao();
+                return true;
 
-                    voltarMenu(scanner);
-                    break;
+            case 5:
+                return gerenciarRobos();
 
-                case 5:
+            case 6:
+                return gerenciarAreas();
 
-                    System.out.println("\n=== GERENCIAR ROBÔS ===");
-                    System.out.println("1 - Consultar Robô por ID");
-                    System.out.println("2 - Listar Robôs");
-                    System.out.println("3 - Recarregar Robô");
-                    System.out.println("4 - Consultar Bateria");
-                    System.out.println("5 - Enviar para Manutenção");
-                    System.out.println("6 - Finalizar Manutenção");
-                    System.out.println("0 - Voltar");
+            case 7:
+                return gerenciarMissoes();
 
-                    System.out.print("\nEscolha uma opção: ");
+            case 8:
+                new Relatorio(central).gerarResumo();
+                return true;
 
-                    int opcaoRobos =
-                            Integer.parseInt(scanner.nextLine());
+            case 9:
+                Persistencia.salvarRelatorio(new Relatorio(central));
+                return true;
 
-                    switch (opcaoRobos) {
+            default:
+                return false;
+        }
+    }
 
-                        case 1:
+    // ----- Cadastros -----
 
-                            System.out.print("Informe o ID do robô: ");
+    private void cadastrarDrone() {
 
-                            int idConsultaRobo =
-                                    Integer.parseInt(scanner.nextLine());
+        int id = entrada.lerId("ID do Drone: ");
 
-                            Robo roboConsulta =
-                                    central.buscarRoboPorId(idConsultaRobo);
+        if (idRoboEmUso(id)) {
+            return;
+        }
 
-                            if (roboConsulta == null) {
+        String nome = entrada.lerTexto("Nome do Drone: ");
 
-                                System.out.println("Robô não encontrado.");
+        central.cadastrarRobo(new Drone(id, nome));
 
-                            } else {
+        System.out.println("\nDrone cadastrado com sucesso!");
+    }
 
-                                roboConsulta.exibirResumo();
-                            }
+    private void cadastrarRoboTerrestre() {
 
-                            break;
+        int id = entrada.lerId("ID do Robô: ");
 
-                        case 2:
+        if (idRoboEmUso(id)) {
+            return;
+        }
 
-                            System.out.println("\n=== LISTAR ROBÔS ===");
-                            System.out.println("1 - Todos");
-                            System.out.println("2 - Disponíveis");
-                            System.out.println("3 - Em Manutenção");
-                            System.out.println("4 - Sem Bateria");
+        String nome = entrada.lerTexto("Nome do Robô: ");
+        double carga = entrada.lerDecimalPositivo("Capacidade de carga (kg): ");
 
-                            System.out.print("\nEscolha uma opção: ");
+        central.cadastrarRobo(new RoboTerrestre(id, nome, carga));
 
-                            int opcaoLista =
-                                    Integer.parseInt(scanner.nextLine());
+        System.out.println("\nRobô terrestre cadastrado com sucesso!");
+    }
 
-                            switch (opcaoLista) {
+    private boolean idRoboEmUso(int id) {
 
-                                case 1:
+        if (central.buscarRoboPorId(id) == null) {
+            return false;
+        }
 
-                                    if (central.getRobos().isEmpty()) {
+        System.out.println("Já existe um robô com este ID.");
+        return true;
+    }
 
-                                        System.out.println("Nenhum robô cadastrado.");
+    private void cadastrarArea() {
 
-                                    } else {
+        int id = entrada.lerId("ID da Área: ");
 
-                                        central.listarRobos();
-                                    }
+        if (central.buscarAreaPorId(id) != null) {
 
-                                    break;
+            System.out.println("Já existe uma área com este ID.");
+            return;
+        }
 
-                                case 2:
+        String nome = entrada.lerTexto("Nome da Área: ");
+        String localizacao = entrada.lerTexto("Localização: ");
+        String descricao = entrada.lerTexto("Descrição: ");
 
-                                    central.listarRobosDisponiveis();
+        TipoTerreno terreno =
+                entrada.lerEnum("TIPO DE TERRENO", TipoTerreno.class);
 
-                                    break;
+        NivelRisco risco =
+                entrada.lerEnum("NÍVEL DE RISCO", NivelRisco.class);
 
-                                case 3:
+        central.cadastrarArea(
+                new AreaOperacao(
+                        id, nome, localizacao, terreno, risco, descricao
+                )
+        );
 
-                                    central.listarRobosManutencao();
+        System.out.println("\nÁrea cadastrada com sucesso!");
+    }
 
-                                    break;
+    private void criarMissao() {
 
-                                case 4:
+        if (central.getAreas().isEmpty()) {
 
-                                    central.listarRobosSemBateria();
+            System.out.println("Cadastre uma área primeiro.");
+            return;
+        }
 
-                                    break;
+        if (central.getRobos().isEmpty()) {
 
-                                default:
+            System.out.println("Cadastre um robô primeiro.");
+            return;
+        }
 
-                                    System.out.println("Opção inválida.");
-                            }
+        int id = entrada.lerId("ID da Missão: ");
 
-                            break;
+        if (central.buscarMissaoPorId(id) != null) {
 
-                        case 3:
+            System.out.println("Já existe uma missão com este ID.");
+            return;
+        }
 
-                            System.out.print("Informe o ID do robô: ");
+        String descricao = entrada.lerTexto("Descrição da Missão: ");
 
-                            int idRecarregar =
-                                    Integer.parseInt(scanner.nextLine());
+        TipoMissao tipo =
+                entrada.lerEnum("TIPO DE MISSÃO", TipoMissao.class);
 
-                            Robo roboRecarregar =
-                                    central.buscarRoboPorId(idRecarregar);
+        System.out.println();
+        central.listarAreas();
 
-                            if (roboRecarregar == null) {
+        AreaOperacao area = selecionarArea();
 
-                                System.out.println("Robô não encontrado.");
+        if (area == null) {
+            return;
+        }
 
-                            } else {
+        Missao missao = new Missao(id, descricao, tipo, area);
 
-                                roboRecarregar.recarregar();
+        central.cadastrarMissao(missao);
 
-                                System.out.println(
-                                        "Robô recarregado com sucesso!"
-                                );
-                            }
+        System.out.println("\nMissão criada com sucesso!");
 
-                            break;
+        if (missao.getRoboResponsavel() == null) {
 
-                        case 4:
+            System.out.println(
+                    "Nenhum robô livre no momento. A missão ficará pendente "
+                            + "e receberá um robô ao ser executada."
+            );
 
-                            System.out.print("Informe o ID do robô: ");
+        } else {
 
-                            int idBateria =
-                                    Integer.parseInt(scanner.nextLine());
+            System.out.println(
+                    "Robô atribuído automaticamente: "
+                            + missao.getRoboResponsavel().getNome()
+            );
+        }
+    }
 
-                            Robo roboBateria =
-                                    central.buscarRoboPorId(idBateria);
+    // ----- Robôs -----
 
-                            if (roboBateria == null) {
+    private boolean gerenciarRobos() {
 
-                                System.out.println("Robô não encontrado.");
+        System.out.println("\n=== GERENCIAR ROBÔS ===");
+        System.out.println("1 - Consultar Robô por ID");
+        System.out.println("2 - Listar Robôs");
+        System.out.println("3 - Recarregar Robô");
+        System.out.println("4 - Consultar Bateria");
+        System.out.println("5 - Enviar para Manutenção");
+        System.out.println("6 - Finalizar Manutenção");
+        System.out.println("0 - Voltar");
 
-                            } else {
+        int opcao = entrada.lerOpcao(0, 6);
 
-                                System.out.println(
-                                        "Bateria: "
-                                                + roboBateria.consultarBateria()
-                                                + "%"
-                                );
-                            }
+        if (opcao == 0) {
+            return false;
+        }
 
-                            break;
+        if (opcao == 2) {
+            return listarRobos();
+        }
 
-                        case 5:
+        Robo robo = selecionarRobo();
 
-                            System.out.print("Informe o ID do robô: ");
+        if (robo == null) {
+            return true;
+        }
 
-                            int idManutencao =
-                                    Integer.parseInt(scanner.nextLine());
+        switch (opcao) {
 
-                            Robo roboManutencao =
-                                    central.buscarRoboPorId(idManutencao);
+            case 1:
+                robo.exibirResumo();
+                break;
 
-                            if (roboManutencao == null) {
+            case 3:
+                robo.recarregar();
+                break;
 
-                                System.out.println("Robô não encontrado.");
+            case 4:
+                System.out.println(
+                        "Bateria: " + robo.consultarBateria() + "%"
+                );
+                break;
 
-                            } else {
+            case 5:
+                robo.enviarManutencao();
+                break;
 
-                                roboManutencao.enviarManutencao();
+            case 6:
+                robo.finalizarManutencao();
+                break;
+        }
 
-                                System.out.println(
-                                        "Robô enviado para manutenção!"
-                                );
-                            }
+        return true;
+    }
 
-                            break;
+    private boolean listarRobos() {
 
-                        case 6:
+        System.out.println("\n=== LISTAR ROBÔS ===");
+        System.out.println("1 - Todos");
+        System.out.println("2 - Disponíveis");
+        System.out.println("3 - Em Manutenção");
+        System.out.println("4 - Sem Bateria");
+        System.out.println("5 - Em Missão");
+        System.out.println("0 - Voltar");
 
-                            System.out.print("Informe o ID do robô: ");
+        switch (entrada.lerOpcao(0, 5)) {
 
-                            int idFinalizar =
-                                    Integer.parseInt(scanner.nextLine());
+            case 1:
+                central.listarRobos();
+                return true;
 
-                            Robo roboFinalizar =
-                                    central.buscarRoboPorId(idFinalizar);
+            case 2:
+                central.listarRobosDisponiveis();
+                return true;
 
-                            if (roboFinalizar == null) {
+            case 3:
+                central.listarRobosManutencao();
+                return true;
 
-                                System.out.println("Robô não encontrado.");
+            case 4:
+                central.listarRobosSemBateria();
+                return true;
 
-                            } else {
+            case 5:
+                central.listarRobosEmMissao();
+                return true;
 
-                                roboFinalizar.finalizarManutencao();
+            default:
+                return false;
+        }
+    }
 
-                                System.out.println(
-                                        "Manutenção finalizada com sucesso!"
-                                );
-                            }
+    private Robo selecionarRobo() {
 
-                            break;
+        Robo robo = central.buscarRoboPorId(
+                entrada.lerInteiro("Informe o ID do robô: ")
+        );
 
-                        case 0:
+        if (robo == null) {
+            System.out.println("Robô não encontrado.");
+        }
 
-                            break;
+        return robo;
+    }
 
-                        default:
+    // ----- Áreas -----
 
-                            System.out.println("Opção inválida.");
-                    }
+    private boolean gerenciarAreas() {
 
-                    voltarMenu(scanner);
+        System.out.println("\n=== GERENCIAR ÁREAS ===");
+        System.out.println("1 - Consultar Área por ID");
+        System.out.println("2 - Listar Áreas");
+        System.out.println("3 - Filtrar por Risco");
+        System.out.println("4 - Filtrar por Terreno");
+        System.out.println("5 - Atualizar Nível de Risco");
+        System.out.println("0 - Voltar");
 
-                    break;
+        switch (entrada.lerOpcao(0, 5)) {
 
-                case 3:
+            case 1:
+                AreaOperacao consultada = selecionarArea();
 
-                    System.out.print("ID da Área: ");
+                if (consultada != null) {
+                    consultada.exibirInformacoes();
+                }
+                return true;
 
-                    int idArea =
-                            Integer.parseInt(scanner.nextLine());
+            case 2:
+                central.listarAreas();
+                return true;
 
-                    System.out.print("Nome da Área: ");
+            case 3:
+                central.listarAreasPorRisco(
+                        entrada.lerEnum("FILTRAR POR RISCO", NivelRisco.class)
+                );
+                return true;
 
-                    String nomeArea =
-                            scanner.nextLine();
+            case 4:
+                central.listarAreasPorTerreno(
+                        entrada.lerEnum("FILTRAR POR TERRENO", TipoTerreno.class)
+                );
+                return true;
 
-                    System.out.print("Localização: ");
+            case 5:
+                AreaOperacao alterada = selecionarArea();
 
-                    String localizacao =
-                            scanner.nextLine();
+                if (alterada != null) {
 
-                    System.out.println("\n=== TIPO DE TERRENO ===");
-                    System.out.println("1 - URBANO");
-                    System.out.println("2 - FLORESTA");
-                    System.out.println("3 - MONTANHA");
-                    System.out.println("4 - DESERTO");
-
-                    System.out.print("Escolha: ");
-
-                    int opcaoTerrenoArea =
-                            Integer.parseInt(scanner.nextLine());
-
-                    TipoTerreno tipoTerreno;
-
-                    switch (opcaoTerrenoArea) {
-
-                        case 1:
-                            tipoTerreno = TipoTerreno.URBANO;
-                            break;
-
-                        case 2:
-                            tipoTerreno = TipoTerreno.FLORESTA;
-                            break;
-
-                        case 3:
-                            tipoTerreno = TipoTerreno.MONTANHA;
-                            break;
-
-                        case 4:
-                            tipoTerreno = TipoTerreno.DESERTO;
-                            break;
-
-                        default:
-                            tipoTerreno = TipoTerreno.URBANO;
-                    }
-
-                    System.out.println("\n=== NÍVEL DE RISCO ===");
-                    System.out.println("1 - BAIXO");
-                    System.out.println("2 - MEDIO");
-                    System.out.println("3 - ALTO");
-
-                    System.out.print("Escolha: ");
-
-                    int opcaoRiscoArea =
-                            Integer.parseInt(scanner.nextLine());
-
-                    NivelRisco nivelRisco;
-
-                    switch (opcaoRiscoArea) {
-
-                        case 1:
-                            nivelRisco = NivelRisco.BAIXO;
-                            break;
-
-                        case 2:
-                            nivelRisco = NivelRisco.MEDIO;
-                            break;
-
-                        case 3:
-                            nivelRisco = NivelRisco.ALTO;
-                            break;
-
-                        default:
-                            nivelRisco = NivelRisco.MEDIO;
-                    }
-
-                    AreaOperacao novaArea =
-                            new AreaOperacao(
-                                    idArea,
-                                    nomeArea,
-                                    localizacao,
-                                    tipoTerreno,
-                                    nivelRisco,
-                                    "Área cadastrada pelo usuário"
-                            );
-
-                    central.cadastrarArea(novaArea);
-
-                    System.out.println("\nÁrea cadastrada com sucesso!");
-
-                    voltarMenu(scanner);
-
-                    break;
-
-                case 6:
-
-                    System.out.println("\n=== GERENCIAR ÁREAS ===");
-                    System.out.println("1 - Consultar Área por ID");
-                    System.out.println("2 - Listar Áreas");
-                    System.out.println("3 - Filtrar por Risco");
-                    System.out.println("4 - Filtrar por Terreno");
-                    System.out.println("0 - Voltar");
-
-                    System.out.print("\nEscolha uma opção: ");
-
-                    int opcaoArea =
-                            Integer.parseInt(scanner.nextLine());
-
-                    switch (opcaoArea) {
-
-                        case 1:
-
-                            System.out.print("Informe o ID da área: ");
-
-                            int idConsultaArea =
-                                    Integer.parseInt(scanner.nextLine());
-
-                            AreaOperacao areaConsulta =
-                                    central.buscarAreaPorId(idConsultaArea);
-
-                            if (areaConsulta == null) {
-
-                                System.out.println("Área não encontrada.");
-
-                            } else {
-
-                                areaConsulta.exibirInformacoes();
-                            }
-
-                            break;
-
-                        case 2:
-
-                            if (central.getAreas().isEmpty()) {
-
-                                System.out.println("Nenhuma área cadastrada.");
-
-                            } else {
-
-                                central.listarAreas();
-                            }
-
-                            break;
-
-                        case 3:
-
-                            System.out.println("\n=== FILTRAR POR RISCO ===");
-                            System.out.println("1 - BAIXO");
-                            System.out.println("2 - MEDIO");
-                            System.out.println("3 - ALTO");
-
-                            System.out.print("\nEscolha uma opção: ");
-
-                            int opcaoRisco =
-                                    Integer.parseInt(scanner.nextLine());
-
-                            NivelRisco riscoSelecionado = null;
-
-                            switch (opcaoRisco) {
-
-                                case 1:
-                                    riscoSelecionado = NivelRisco.BAIXO;
-                                    break;
-
-                                case 2:
-                                    riscoSelecionado = NivelRisco.MEDIO;
-                                    break;
-
-                                case 3:
-                                    riscoSelecionado = NivelRisco.ALTO;
-                                    break;
-
-                                default:
-                                    System.out.println("Opção inválida.");
-                            }
-
-                            if (riscoSelecionado != null) {
-
-                                boolean encontrou = false;
-
-                                for (AreaOperacao area : central.getAreas()) {
-
-                                    if (area.getNivelRisco() == riscoSelecionado) {
-
-                                        area.exibirInformacoes();
-                                        encontrou = true;
-                                    }
-                                }
-
-                                if (!encontrou) {
-
-                                    System.out.println(
-                                            "Nenhuma área encontrada com este nível de risco."
-                                    );
-                                }
-                            }
-
-                            break;
-
-                        case 4:
-
-                            System.out.println("\n=== FILTRAR POR TERRENO ===");
-                            System.out.println("1 - URBANO");
-                            System.out.println("2 - FLORESTA");
-                            System.out.println("3 - MONTANHA");
-                            System.out.println("4 - DESERTO");
-
-                            System.out.print("\nEscolha uma opção: ");
-
-                            int opcaoTerreno =
-                                    Integer.parseInt(scanner.nextLine());
-
-                            TipoTerreno terrenoSelecionado = null;
-
-                            switch (opcaoTerreno) {
-
-                                case 1:
-                                    terrenoSelecionado = TipoTerreno.URBANO;
-                                    break;
-
-                                case 2:
-                                    terrenoSelecionado = TipoTerreno.FLORESTA;
-                                    break;
-
-                                case 3:
-                                    terrenoSelecionado = TipoTerreno.MONTANHA;
-                                    break;
-
-                                case 4:
-                                    terrenoSelecionado = TipoTerreno.DESERTO;
-                                    break;
-
-                                default:
-                                    System.out.println("Opção inválida.");
-                            }
-
-                            if (terrenoSelecionado != null) {
-
-                                boolean encontrou = false;
-
-                                for (AreaOperacao area : central.getAreas()) {
-
-                                    if (area.getTipoTerreno() == terrenoSelecionado) {
-
-                                        area.exibirInformacoes();
-                                        encontrou = true;
-                                    }
-                                }
-
-                                if (!encontrou) {
-
-                                    System.out.println(
-                                            "Nenhuma área encontrada com este tipo de terreno."
-                                    );
-                                }
-                            }
-
-                            break;
-
-                        case 0:
-
-                            break;
-
-                        default:
-
-                            System.out.println("Opção inválida.");
-                    }
-
-                    voltarMenu(scanner);
-
-                    break;
-
-                case 4:
-
-                    if (central.getAreas().isEmpty()) {
-
-                        System.out.println("Cadastre uma área primeiro.");
-
-                        voltarMenu(scanner);
-
-                        break;
-                    }
-
-                    if (central.getRobos().isEmpty()) {
-
-                        System.out.println("Cadastre um robô primeiro.");
-
-                        voltarMenu(scanner);
-
-                        break;
-                    }
-
-                    System.out.print("ID da Missão: ");
-
-                    int idMissao =
-                            Integer.parseInt(scanner.nextLine());
-
-                    System.out.print("Descrição da Missão: ");
-
-                    String descricao =
-                            scanner.nextLine();
-
-                    System.out.print("ID da Área: ");
-
-                    int areaId =
-                            Integer.parseInt(scanner.nextLine());
-
-                    AreaOperacao areaSelecionada =
-                            central.buscarAreaPorId(areaId);
-
-                    if (areaSelecionada == null) {
-
-                        System.out.println("Área não encontrada.");
-                        voltarMenu(scanner);
-
-                        break;
-                    }
-
-                    Missao missao =
-                            new Missao(
-                                    idMissao,
-                                    descricao,
-                                    TipoMissao.BUSCA,
-                                    areaSelecionada
-                            );
-
-                    Robo roboSelecionado = null;
-
-                    for (Robo roboDisponivel : central.getRobos()) {
-
-                        if (roboDisponivel.verificarDisponibilidade()) {
-
-                            roboSelecionado = roboDisponivel;
-                            break;
-                        }
-
-                    }
-
-                    if (roboSelecionado == null) {
-
-                        System.out.println(
-                                "Nenhum robô disponível para esta missão."
-                        );
-
-                        voltarMenu(scanner);
-
-                        break;
-                    }
-
-                    missao.atribuirRobo(roboSelecionado);
-
-                    central.cadastrarMissao(missao);
-
-                    System.out.println("\nMissão criada com sucesso!");
-
-                    System.out.println(
-                            "Robô atribuído automaticamente: "
-                                    + roboSelecionado.getNome()
+                    alterada.atualizarNivelRisco(
+                            entrada.lerEnum("NOVO NÍVEL DE RISCO", NivelRisco.class)
                     );
 
-                    voltarMenu(scanner);
+                    System.out.println("Nível de risco atualizado com sucesso!");
+                }
+                return true;
 
-                    break;
+            default:
+                return false;
+        }
+    }
 
-                case 7:
+    private AreaOperacao selecionarArea() {
 
-                    System.out.println("\n=== GERENCIAR MISSÕES ===");
-                    System.out.println("1 - Consultar Missão por ID");
-                    System.out.println("2 - Listar Missões");
-                    System.out.println("3 - Executar Missão");
-                    System.out.println("4 - Concluir Missão");
-                    System.out.println("5 - Cancelar Missão");
-                    System.out.println("0 - Voltar");
+        AreaOperacao area = central.buscarAreaPorId(
+                entrada.lerInteiro("Informe o ID da área: ")
+        );
 
-                    System.out.print("\nEscolha uma opção: ");
+        if (area == null) {
+            System.out.println("Área não encontrada.");
+        }
 
-                    int opcaoMissao =
-                            Integer.parseInt(scanner.nextLine());
+        return area;
+    }
 
-                    switch (opcaoMissao) {
+    // ----- Missões -----
 
-                        case 1:
+    private boolean gerenciarMissoes() {
 
-                            System.out.print("\nInforme o ID da missão: ");
+        System.out.println("\n=== GERENCIAR MISSÕES ===");
+        System.out.println("1 - Consultar Missão por ID");
+        System.out.println("2 - Listar Missões");
+        System.out.println("3 - Executar Missão");
+        System.out.println("4 - Concluir Missão");
+        System.out.println("5 - Cancelar Missão");
+        System.out.println("0 - Voltar");
 
-                            int idConsultaMissao =
-                                    Integer.parseInt(scanner.nextLine());
+        int opcao = entrada.lerOpcao(0, 5);
 
-                            Missao missaoConsulta =
-                                    central.buscarMissaoPorId(idConsultaMissao);
+        if (opcao == 0) {
+            return false;
+        }
 
-                            if (missaoConsulta == null) {
+        if (opcao == 2) {
+            return listarMissoes();
+        }
 
-                                System.out.println("Missão não encontrada.");
+        if (central.getMissoes().isEmpty()) {
 
-                            } else {
+            System.out.println("Nenhuma missão cadastrada.");
+            return true;
+        }
 
-                                missaoConsulta.exibirResumo();
-                            }
+        if (opcao != 1) {
+            central.listarMissoes();
+        }
 
-                            break;
+        Missao missao = selecionarMissao();
 
-                        case 2:
+        if (missao == null) {
+            return true;
+        }
 
-                            System.out.println("\n=== LISTAR MISSÕES ===");
-                            System.out.println("1 - Todas");
-                            System.out.println("2 - Pendentes");
+        switch (opcao) {
 
-                            System.out.print("\nEscolha uma opção: ");
+            case 1:
+                missao.exibirResumo();
+                break;
 
-                            int opcaoListaMissao =
-                                    Integer.parseInt(scanner.nextLine());
+            case 3:
+                central.executarMissao(missao);
+                break;
 
-                            switch (opcaoListaMissao) {
+            case 4:
+                central.concluirMissao(missao);
+                break;
 
-                                case 1:
+            case 5:
+                central.cancelarMissao(missao);
+                break;
+        }
 
-                                    if (central.getMissoes().isEmpty()) {
+        return true;
+    }
 
-                                        System.out.println(
-                                                "Nenhuma missão cadastrada."
-                                        );
+    private boolean listarMissoes() {
 
-                                    } else {
+        System.out.println("\n=== LISTAR MISSÕES ===");
+        System.out.println("1 - Todas");
+        System.out.println("2 - Pendentes");
+        System.out.println("0 - Voltar");
 
-                                        central.listarMissoes();
-                                    }
+        switch (entrada.lerOpcao(0, 2)) {
 
-                                    break;
+            case 1:
+                central.listarMissoes();
+                return true;
 
-                                case 2:
+            case 2:
+                central.listarMissoesPendentes();
+                return true;
 
-                                    central.listarMissoesPendentes();
+            default:
+                return false;
+        }
+    }
 
-                                    break;
+    private Missao selecionarMissao() {
 
-                                default:
+        Missao missao = central.buscarMissaoPorId(
+                entrada.lerInteiro("\nInforme o ID da missão: ")
+        );
 
-                                    System.out.println("Opção inválida.");
-                            }
+        if (missao == null) {
+            System.out.println("Missão não encontrada.");
+        }
 
-                            break;
-
-                        case 3:
-
-                            System.out.print(
-                                    "\nInforme o ID da missão: "
-                            );
-
-                            int idExecutar =
-                                    Integer.parseInt(scanner.nextLine());
-
-                            Missao missaoExecutar =
-                                    central.buscarMissaoPorId(idExecutar);
-
-                            if (missaoExecutar == null) {
-
-                                System.out.println(
-                                        "Missão não encontrada."
-                                );
-
-                            } else {
-
-                                missaoExecutar.iniciarMissao();
-                            }
-
-                            break;
-
-                        case 4:
-
-                            if (central.getMissoes().isEmpty()) {
-
-                                System.out.println(
-                                        "Nenhuma missão cadastrada."
-                                );
-
-                                break;
-                            }
-
-                            central.listarMissoes();
-
-                            System.out.print(
-                                    "\nInforme o ID da missão: "
-                            );
-
-                            int idConcluir =
-                                    Integer.parseInt(scanner.nextLine());
-
-                            Missao missaoConcluir =
-                                    central.buscarMissaoPorId(idConcluir);
-
-                            if (missaoConcluir == null) {
-
-                                System.out.println(
-                                        "Missão não encontrada."
-                                );
-
-                            } else {
-
-                                missaoConcluir.concluirMissao();
-
-                                central.removerMissaoPendente(
-                                        missaoConcluir
-                                );
-
-                                System.out.println(
-                                        "Missão concluída com sucesso!"
-                                );
-                            }
-
-                            break;
-
-                        case 5:
-
-                            if (central.getMissoes().isEmpty()) {
-
-                                System.out.println(
-                                        "Nenhuma missão cadastrada."
-                                );
-
-                                break;
-                            }
-
-                            central.listarMissoes();
-
-                            System.out.print(
-                                    "\nInforme o ID da missão para cancelar: "
-                            );
-
-                            int idMissaoCancelar =
-                                    Integer.parseInt(scanner.nextLine());
-
-                            Missao missaoParaCancelar =
-                                    central.buscarMissaoPorId(
-                                            idMissaoCancelar
-                                    );
-
-                            if (missaoParaCancelar == null) {
-
-                                System.out.println(
-                                        "Missão não encontrada."
-                                );
-
-                            } else {
-
-                                missaoParaCancelar.cancelarMissao();
-
-                                central.removerMissaoPendente(
-                                        missaoParaCancelar
-                                );
-
-                                System.out.println(
-                                        "Missão cancelada com sucesso!"
-                                );
-                            }
-
-                            break;
-
-                        case 0:
-
-                            break;
-
-                        default:
-
-                            System.out.println("Opção inválida.");
-                    }
-
-                    voltarMenu(scanner);
-
-                    break;
-
-                case 8:
-
-                    Relatorio relatorio =
-                            new Relatorio(central);
-
-                    relatorio.gerarResumo();
-
-                    voltarMenu(scanner);
-
-                    break;
-
-
-                case 9:
-
-                    Relatorio relatorioArquivo =
-                            new Relatorio(central);
-
-                    Persistencia.salvarRelatorio(
-                            relatorioArquivo
-                    );
-
-                    System.out.println(
-                            "\nRelatório salvo com sucesso!"
-                    );
-
-                    voltarMenu(scanner);
-
-                    break;
-
-
-                case 0:
-
-                    Persistencia.salvarSistema(central);
-
-                    System.out.println(
-                            "\nEncerrando sistema..."
-                    );
-
-                    break;
-
-                default:
-
-                    System.out.println(
-                            "\nOpção inválida."
-                    );
-
-                    voltarMenu(scanner);
-            }
-
-        } while (opcao != 0);
-
-        scanner.close();
+        return missao;
     }
 }

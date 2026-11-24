@@ -6,6 +6,8 @@ import java.io.Serializable;
 
 public class AreaOperacao implements Serializable {
 
+    private static final long serialVersionUID = 2527111315753526991L;
+
     private int id;
     private String nome;
     private String localizacao;

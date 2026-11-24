@@ -4,6 +4,10 @@ import enums.StatusRobo;
 
 public class RoboTerrestre extends Robo {
 
+    private static final long serialVersionUID = -5670808370081774227L;
+
+    private static final int CONSUMO_POR_MISSAO = 30;
+
     private double capacidadeCarga;
 
     public RoboTerrestre(int id, String nome, double capacidadeCarga) {
@@ -12,16 +16,10 @@ public class RoboTerrestre extends Robo {
     }
 
     @Override
-    public void executarMissao() {
+    public boolean executarMissao() {
 
-        if (status == StatusRobo.EM_MANUTENCAO) {
-            System.out.println("Robô em manutenção.");
-            return;
-        }
-
-        if (nivelBateria <= 20) {
-            System.out.println("Bateria insuficiente.");
-            return;
+        if (!podeExecutarMissao()) {
+            return false;
         }
 
         status = StatusRobo.EM_MISSAO;
@@ -30,13 +28,19 @@ public class RoboTerrestre extends Robo {
 
         enviarMensagem("Missão terrestre iniciada.");
 
-        nivelBateria -= 30;
+        consumirBateria(CONSUMO_POR_MISSAO);
 
-        if (nivelBateria <= 20) {
-            status = StatusRobo.SEM_BATERIA;
-        } else {
-            status = StatusRobo.DISPONIVEL;
-        }
+        return true;
+    }
+
+    @Override
+    public int getConsumoPorMissao() {
+        return CONSUMO_POR_MISSAO;
+    }
+
+    @Override
+    public String getTipo() {
+        return "Robô Terrestre (carga: " + capacidadeCarga + " kg)";
     }
 
     public double getCapacidadeCarga() {
